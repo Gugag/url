@@ -26,7 +26,7 @@ function copyToClipboard(text) {
         // Style the alertBox for a centered toast message
         Object.assign(alertBox.style, {
           position: 'fixed',
-          top: '50%',
+          top: '30%',
           left: '50%',
           transform: 'translate(-50%, -50%)',
           backgroundColor: '#4CAF50',
