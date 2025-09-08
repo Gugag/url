@@ -1,22 +1,109 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta property="og:title" content="URL Shortener"> 
-    <meta property="og:description" content="Some Free IT Tool, use Without Registration" > 
-    <meta property="og:image" content="https://itdata.ge/images/prw.png"> 
-    <meta property="og:url"content="https://itdata.ge"> 
-    <title>Simple URL Shortener</title>
-    <link rel="stylesheet" href="style.css">
-    <link type="image/png" sizes="32x32" rel="icon" href="shorten-urls-32.png">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#0ea5e9" />
+  <meta name="description" content="Simple, privacy-friendly URL shortener with multiple providers, copy/open buttons, and local history. No login required." />
+  <meta property="og:title" content="URL Shortener" />
+  <meta property="og:description" content="Some Free IT Tool, use Without Registration" />
+  <meta property="og:image" content="https://itdata.ge/images/prw.png" />
+  <meta property="og:url" content="https://itdata.ge" />
+  <title>URL Shortener</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="shorten-urls-32.png" />
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-    <h2>Simple URL Shortener</h2>
-    <input type="text" id="longUrl" placeholder="Enter URL to shorten">
-    <button onclick="shortenUrl()">Shorten</button>
-    <div id="result"></div>
+  <header class="site-header">
+    <div class="container header-inner">
+      <h1>URL Shortener</h1>
+      <div class="header-actions">
+        <button id="themeToggle" class="ghost" title="Toggle theme" aria-label="Toggle theme">🌙</button>
+      </div>
+    </div>
+  </header>
 
-    <script src="script.js"></script>
+  <main class="container">
+    <section class="card">
+      <div class="grid three">
+        <div class="form-group">
+          <label for="longUrl">Long URL</label>
+          <input id="longUrl" type="url" inputmode="url" placeholder="https://example.com/some/very/long/link?with=params" autocomplete="off" />
+          <div class="muted small">Paste your link. We'll validate and normalize it.</div>
+        </div>
+
+        <div class="form-group">
+          <label for="provider">Provider</label>
+          <select id="provider">
+            <option value="cleanuri">CleanURI (no key)</option>
+            <option value="shrtco">shrtco.de (no key)</option>
+            <option value="isgd">is.gd (no key)</option>
+            <option value="local">Local only (this browser)</option>
+          </select>
+          <div class="muted small">If an API is blocked by CORS, try another—or use Local.</div>
+        </div>
+
+        <div class="form-group" id="slugWrap" hidden>
+          <label for="customSlug">Custom slug (local)</label>
+          <input id="customSlug" type="text" placeholder="e.g., promo-2025" maxlength="48" />
+          <div class="muted small">Only for Local provider. Letters, numbers, dashes, underscores.</div>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button id="shortenBtn" class="primary">Shorten</button>
+        <button id="resetBtn" class="ghost">Reset</button>
+      </div>
+      <p class="muted small">Press Ctrl/⌘+Enter to shorten. We never send your links anywhere unless you pick an external provider.</p>
+    </section>
+
+    <section class="card">
+      <h2>Result</h2>
+      <div id="alert" class="alert hidden" role="status"></div>
+      <div id="result" class="result-box hidden">
+        <div class="result-row">
+          <span class="label">Short URL</span>
+          <a id="shortLink" href="#" target="_blank" rel="noopener">—</a>
+        </div>
+        <div class="btn-row">
+          <button id="copyBtn" class="ghost" disabled>Copy</button>
+          <button id="openBtn" class="ghost" disabled>Open</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="header-with-btns">
+        <h2>History (this device)</h2>
+        <div class="btn-row">
+          <button id="exportBtn" class="ghost" disabled>Export CSV</button>
+          <button id="clearBtn" class="ghost">Clear</button>
+        </div>
+      </div>
+      <div id="tableWrap" class="table-wrap muted small">No links yet.</div>
+    </section>
+
+    <section class="card">
+      <h2>About Local links</h2>
+      <p class="muted small">Local links are saved only in your browser using <code>localStorage</code>. They look like <code>?go=&lt;slug&gt;</code> and auto-redirect on this page if the slug is known here. For sharing publicly, use an external provider.</p>
+    </section>
+
+    <section class="ad card">
+      <div class="ad-box">
+        <ins class="adsbygoogle"
+             style="display:inline-block;width:728px;height:90px"
+             data-ad-client="ca-pub-1234552946070834"
+             data-ad-slot="3273843323"></ins>
+      </div>
+    </section>
+  </main>
+
+  <footer class="container muted small">
+    <p>Be mindful: third‑party providers have their own retention and abuse policies.</p>
+  </footer>
+
+  <script src="script.js"></script>
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1234552946070834" crossorigin="anonymous"></script>
+  <script>window.addEventListener('load',()=>{(adsbygoogle=window.adsbygoogle||[]).push({});});</script>
 </body>
 </html>
