@@ -38,7 +38,7 @@
             <option value="cleanuri">CleanURI (no key)</option>
             <option value="shrtco">shrtco.de (no key)</option>
             <option value="isgd">is.gd (no key)</option>
-            <option value="local">Local only (this browser)</option>
+            <option value="local" selected>Local only (this browser)</option>
           </select>
           <div class="muted small">If an API is blocked by CORS, try another—or use Local.</div>
         </div>
@@ -102,7 +102,8 @@
     <p>Be mindful: third‑party providers have their own retention and abuse policies.</p>
   </footer>
 
-  <script src="script.js"></script>
+  <script>window.PROXY_BASE = "https://your-subdomain.workers.dev";</script>
+<script src="script.js"></script>
   <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1234552946070834" crossorigin="anonymous"></script>
   <script>window.addEventListener('load',()=>{(adsbygoogle=window.adsbygoogle||[]).push({});});</script>
 </body>
