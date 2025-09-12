@@ -1,4 +1,4 @@
-// URL Shortener with multiple providers, local fallback, copy/open, history, theme
+// URL Shortener with proxy support for third‑party providers (CleanURI, shrtco.de, is.gd)
 (function(){
   const $ = (s)=>document.querySelector(s);
   const els = {
@@ -15,31 +15,39 @@
     copyBtn: $('#copyBtn'),
     openBtn: $('#openBtn'),
     tableWrap: $('#tableWrap'),
-    clearBtn: $('#clearBtn'),
     exportBtn: $('#exportBtn'),
+    clearBtn: $('#clearBtn')
   };
+
+  // ====== SET THIS TO YOUR CLOUDFLARE WORKER URL ======
+  // Example: https://your-subdomain.workers.dev OR https://url.itdata.ge/api/shorten (if you routed a path to the Worker)
+  const PROXY_BASE = (window.PROXY_BASE || '').trim(); // you can also set window.PROXY_BASE before this script tag
 
   // Theme
-  (function initTheme(){
-    const saved = localStorage.getItem('shortener-theme');
-    if(saved === 'light') document.documentElement.classList.add('light');
-    els.themeToggle.textContent = document.documentElement.classList.contains('light') ? '🌙' : '☀️';
-  })();
-  els.themeToggle.addEventListener('click', ()=>{
-    const isLight = document.documentElement.classList.toggle('light');
-    localStorage.setItem('shortener-theme', isLight ? 'light' : 'dark');
-    els.themeToggle.textContent = isLight ? '🌙' : '☀️';
+  const savedTheme = localStorage.getItem('shortener-theme');
+  if(savedTheme === 'light') document.documentElement.classList.add('light');
+  els.themeToggle?.addEventListener('click', ()=>{
+    const light = document.documentElement.classList.toggle('light');
+    localStorage.setItem('shortener-theme', light ? 'light' : 'dark');
+    els.themeToggle.textContent = light ? '🌙' : '🌞';
   });
 
-  // Show slug only for local provider
-  const providerChange = ()=>{
+  // Provider UI
+  els.provider?.addEventListener('change', ()=>{
     els.slugWrap.hidden = els.provider.value !== 'local';
-  };
-  els.provider.addEventListener('change', providerChange);
-  providerChange();
+  });
 
-  // Redirect helper for local mode using ?go=slug
-  (function maybeRedirect(){
+  // Result btns
+  els.resetBtn?.addEventListener('click', ()=>{
+    els.longUrl.value = '';
+    els.resultBox.classList.add('hidden');
+    els.copyBtn.disabled = true;
+    els.openBtn.disabled = true;
+    els.longUrl.focus();
+  });
+
+  // Local redirect if slug present
+  (function handleLocalGoParam(){
     const params = new URLSearchParams(location.search);
     const slug = params.get('go');
     if(!slug) return;
@@ -55,7 +63,6 @@
 
   function normalizeUrl(u){
     try{
-      // Add scheme if missing
       if(!/^([a-z]+:)?\/\//i.test(u)) u = 'https://' + u;
       const url = new URL(u);
       return url.href;
@@ -65,24 +72,28 @@
   function showAlert(msg, kind='warn'){
     els.alert.textContent = msg;
     els.alert.classList.remove('hidden');
-    els.alert.className = 'alert'; // reset
+    els.alert.className = 'alert';
     if(kind==='warn') els.alert.classList.add('warn');
     if(kind==='err') els.alert.classList.add('err');
     setTimeout(()=> els.alert.classList.add('hidden'), 4000);
   }
 
   async function shorten(){
-    const long = normalizeUrl(els.longUrl.value.trim());
-    if(!long){ showAlert('Please enter a valid URL (e.g., https://example.com).', 'err'); return; }
-
+    const raw = (els.longUrl.value||'').trim();
+    const long = normalizeUrl(raw);
+    if(!long) return showAlert('Please paste a valid URL (hint: we will auto‑add https:// if missing).');
     const provider = els.provider.value;
-    disableUI(true);
-    let short = null, providerLabel = provider;
 
+    // Guard: external providers require a proxy to avoid CORS
+    if(provider !== 'local' && !PROXY_BASE){
+      return showAlert('External provider blocked by CORS. Set PROXY_BASE to your Cloudflare Worker URL (see instructions) or switch Provider to "Local".', 'err');
+    }
+
+    disableUI(true);
+    let short = null, providerLabel = '';
     try{
       if(provider === 'local'){
-        const slug = makeSlug(els.customSlug.value.trim());
-        if(slug === false){ showAlert('Slug may contain letters, numbers, dash, underscore.', 'err'); disableUI(false); return; }
+        const slug = makeSlug(els.customSlug.value.trim()) || makeAutoSlug();
         const shortUrl = makeLocalShort(slug);
         saveLocalMapping(slug, long);
         short = shortUrl; providerLabel = 'local';
@@ -94,7 +105,8 @@
         short = await viaIsGd(long); providerLabel = 'is.gd';
       }
     }catch(e){
-      showAlert(e.message || 'Shortening failed.', 'err');
+      const msg = (e && e.message) ? e.message : 'Shortening failed.';
+      showAlert(msg.includes('CORS') ? 'Provider blocked by CORS. Configure the proxy.' : msg, 'err');
     }finally{
       disableUI(false);
     }
@@ -110,9 +122,9 @@
     }
   }
 
-  // Providers
+  // ===== Providers via proxy =====
   async function viaCleanURI(url){
-    const res = await fetch('https://cleanuri.com/api/v1/shorten', {
+    const res = await fetch(`${PROXY_BASE.replace(/\/$/,'')}/cleanuri`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
       body: new URLSearchParams({ url })
@@ -123,83 +135,70 @@
     if(!data.result_url) throw new Error('Unexpected CleanURI response.');
     return data.result_url;
   }
+
   async function viaShrtco(url){
-    const res = await fetch('https://api.shrtco.de/v2/shorten?url=' + encodeURIComponent(url));
+    const res = await fetch(`${PROXY_BASE.replace(/\/$/,'')}/shrtco?url=` + encodeURIComponent(url));
     if(!res.ok) throw new Error('shrtco.de request failed.');
     const data = await res.json();
     if(!data.ok) throw new Error(data.error || 'shrtco.de error');
     return data.result.full_short_link;
   }
+
   async function viaIsGd(url){
-    const res = await fetch('https://is.gd/create.php?format=simple&url=' + encodeURIComponent(url));
+    const res = await fetch(`${PROXY_BASE.replace(/\/$/,'')}/isgd?url=` + encodeURIComponent(url));
     if(!res.ok) throw new Error('is.gd request failed.');
     const text = await res.text();
     if(/^https?:\/\//i.test(text)) return text.trim();
     throw new Error('is.gd error: ' + text.slice(0,120));
   }
 
-  // Local provider
+  // ===== Local provider =====
   function makeSlug(raw){
-    if(!raw) return randomSlug();
-    if(!/^[\w-]+$/.test(raw)) return false;
-    return raw;
+    if(!raw) return '';
+    const s = raw.toLowerCase().replace(/[^a-z0-9_-]/g, '-').replace(/-+/g,'-').replace(/^-|-$/g,'');
+    return s.slice(0,48);
   }
-  function randomSlug(){
-    const alphabet = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    let s = '';
-    for(let i=0;i<7;i++){ s += alphabet[Math.floor(Math.random()*alphabet.length)]; }
-    return s;
+  function makeAutoSlug(){
+    return Math.random().toString(36).slice(2,8) + '-' + Date.now().toString(36).slice(-4);
   }
-  function makeLocalShort(slug){
-    const url = new URL(location.href);
-    url.searchParams.set('go', slug);
-    url.hash = '';
-    return url.href;
-  }
+  function makeLocalShort(slug){ return location.origin + location.pathname + '?go=' + encodeURIComponent(slug); }
   function saveLocalMapping(slug, long){
     const map = JSON.parse(localStorage.getItem('shortener-map') || '{}');
-    map[slug] = long;
-    localStorage.setItem('shortener-map', JSON.stringify(map));
+    map[slug] = long; localStorage.setItem('shortener-map', JSON.stringify(map));
   }
 
-  function addHistory(entry){
+  // History
+  function addHistory(item){
     const arr = JSON.parse(localStorage.getItem('shortener-history') || '[]');
-    arr.unshift(entry);
-    localStorage.setItem('shortener-history', JSON.stringify(arr.slice(0,500)));
-    els.exportBtn.disabled = arr.length === 0;
+    arr.unshift(item);
+    localStorage.setItem('shortener-history', JSON.stringify(arr.slice(0,200)));
   }
-
   function renderTable(){
     const arr = JSON.parse(localStorage.getItem('shortener-history') || '[]');
-    if(arr.length === 0){
-      els.tableWrap.textContent = 'No links yet.';
-      els.exportBtn.disabled = true;
-      return;
-    }
+    if(arr.length===0){ els.tableWrap.innerHTML = 'No links yet.'; els.exportBtn.disabled = true; return; }
     els.exportBtn.disabled = false;
     const rows = arr.map((r,i)=>{
       const d = new Date(r.ts);
-      return `<tr>
+      return `<tr data-idx="${i}">
         <td>${d.toLocaleString()}</td>
         <td><a href="${escapeHtml(r.long)}" target="_blank" rel="noopener">${escapeHtml(r.long)}</a></td>
         <td><a href="${escapeHtml(r.short)}" target="_blank" rel="noopener">${escapeHtml(r.short)}</a></td>
         <td><span class="badge">${escapeHtml(r.provider)}</span></td>
-        <td><button class="ghost" data-idx="${i}" data-action="copy">Copy</button> <button class="ghost" data-idx="${i}" data-action="del">Delete</button></td>
+        <td class="hstack"><button data-action="copy" class="ghost">Copy</button><button data-action="open" class="ghost">Open</button><button data-action="del" class="ghost">Delete</button></td>
       </tr>`;
     }).join('');
-    els.tableWrap.innerHTML = `<div class="table-scroll"><table><thead><tr><th>Time</th><th>Original</th><th>Short</th><th>Provider</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+    els.tableWrap.innerHTML = `<div class="table-wrap"><table><thead><tr><th>Time</th><th>Original</th><th>Short</th><th>Provider</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`;
   }
-
-  els.tableWrap.addEventListener('click', async (e)=>{
-    const btn = e.target.closest('button[data-action]');
-    if(!btn) return;
-    const idx = parseInt(btn.dataset.idx,10);
-    const action = btn.dataset.action;
+  els.tableWrap?.addEventListener('click', async (e)=>{
+    const btn = e.target.closest('button'); if(!btn) return;
+    const tr = btn.closest('tr'); if(!tr) return;
+    const idx = +tr.dataset.idx;
     const arr = JSON.parse(localStorage.getItem('shortener-history') || '[]');
-    const item = arr[idx];
-    if(!item) return;
-
-    if(action === 'copy'){
+    const item = arr[idx]; if(!item) return;
+    const action = btn.dataset.action;
+    if(action === 'open'){
+      window.open(item.short, '_blank', 'noopener');
+    }else if(action === 'copy'){
       try{
         await navigator.clipboard.writeText(item.short);
         btn.textContent = 'Copied!';
@@ -212,48 +211,34 @@
     }
   });
 
-  els.copyBtn.addEventListener('click', async ()=>{
+  els.copyBtn?.addEventListener('click', async ()=>{
     try{
       await navigator.clipboard.writeText(els.shortLink.href);
       els.copyBtn.textContent = 'Copied!';
       setTimeout(()=> els.copyBtn.textContent = 'Copy', 1000);
     }catch{ alert('Copy failed.'); }
   });
-  els.openBtn.addEventListener('click', ()=>{
+  els.openBtn?.addEventListener('click', ()=>{
     window.open(els.shortLink.href, '_blank', 'noopener');
   });
 
-  els.exportBtn.addEventListener('click', ()=>{
+  els.exportBtn?.addEventListener('click', ()=>{
     const arr = JSON.parse(localStorage.getItem('shortener-history') || '[]');
     if(arr.length===0) return;
-    const csv = 'Time,Original,Short,Provider\n' + arr.map(r => {
+    const csv = 'Time,Original,Short,Provider\\n' + arr.map(r => {
       const d = new Date(r.ts).toISOString();
       return `"${d}","${r.long.replace(/"/g,'""')}","${r.short.replace(/"/g,'""')}","${r.provider.replace(/"/g,'""')}"`;
-    }).join('\n');
+    }).join('\\n');
     const blob = new Blob([csv], {type:'text/csv'});
-    const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url; a.download = 'shortener-history.csv';
-    document.body.appendChild(a); a.click();
-    setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 0);
+    a.href = URL.createObjectURL(blob); a.download = 'shortener-history.csv'; a.click();
+    URL.revokeObjectURL(a.href);
+  });
+  els.clearBtn?.addEventListener('click', ()=>{
+    if(confirm('Clear local history?')){ localStorage.removeItem('shortener-history'); renderTable(); }
   });
 
-  els.resetBtn.addEventListener('click', ()=>{
-    els.longUrl.value = '';
-    els.customSlug.value = '';
-    els.resultBox.classList.add('hidden');
-    els.copyBtn.disabled = true;
-    els.openBtn.disabled = true;
-    els.alert.classList.add('hidden');
-    els.longUrl.focus();
-  });
-
-  els.clearBtn.addEventListener('click', ()=>{
-    localStorage.removeItem('shortener-history');
-    renderTable();
-  });
-
-  els.shortenBtn.addEventListener('click', shorten);
+  els.shortenBtn?.addEventListener('click', shorten);
   window.addEventListener('keydown', (e)=>{ if((e.ctrlKey||e.metaKey) && e.key==='Enter') shorten(); });
 
   function disableUI(disabled){
@@ -267,5 +252,5 @@
 
   // Init
   renderTable();
-  setTimeout(()=> els.longUrl.focus(), 50);
+  setTimeout(()=> els.longUrl?.focus(), 50);
 })();
