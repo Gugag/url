@@ -1,4 +1,4 @@
-\// URL Shortener with proxy support for third‑party providers (CleanURI, shrtco.de, is.gd)
+// URL Shortener with proxy support for third‑party providers (CleanURI, shrtco.de, is.gd)
 (function(){
   const $ = (s)=>document.querySelector(s);
   const els = {
