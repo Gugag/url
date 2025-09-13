@@ -12,99 +12,25 @@
   <title>URL Shortener</title>
   <link rel="icon" type="image/png" sizes="32x32" href="shorten-urls-32.png" />
   <link rel="stylesheet" href="style.css" />
+    <style>
+    .row{display:flex;gap:8px;justify-content:center;align-items:center;flex-wrap:wrap}
+    .help{opacity:.8;font-size:.9rem;margin-top:12px}
+    #result small{display:block;font-weight:normal;margin-top:6px;opacity:.8}
+    .out{margin-top:14px;word-break:break-all}
+    .copy{margin-left:8px}
+    .err{color:#b00020}
+    .ok{color:#075e00}
+  </style>
 </head>
 <body>
-  <header class="site-header">
-    <div class="container header-inner">
-      <h1>URL Shortener</h1>
-      <div class="header-actions">
-        <button id="themeToggle" class="ghost" title="Toggle theme" aria-label="Toggle theme">🌙</button>
-      </div>
-    </div>
-  </header>
+   <h2>Simple URL Shortener</h2>
+  <div class="row">
+    <input type="url" id="longUrl" placeholder="Enter URL to shorten" aria-label="Long URL" />
+    <button id="go">Shorten</button>
+  </div>
+  <div class="help">Uses CleanURI with shrtco.de fallback. No Cloudflare/Worker needed.</div>
+  <div id="result"></div>
 
-  <main class="container">
-    <section class="card">
-      <div class="grid three">
-        <div class="form-group">
-          <label for="longUrl">Long URL</label>
-          <input id="longUrl" type="url" inputmode="url" placeholder="https://example.com/some/very/long/link?with=params" autocomplete="off" />
-          <div class="muted small">Paste your link. We'll validate and normalize it.</div>
-        </div>
-
-        <div class="form-group">
-          <label for="provider">Provider</label>
-          <select id="provider">
-            <option value="cleanuri">CleanURI (no key)</option>
-            <option value="shrtco">shrtco.de (no key)</option>
-            <option value="isgd">is.gd (no key)</option>
-            <option value="local" selected>Local only (this browser)</option>
-          </select>
-          <div class="muted small">If an API is blocked by CORS, try another—or use Local.</div>
-        </div>
-
-        <div class="form-group" id="slugWrap" hidden>
-          <label for="customSlug">Custom slug (local)</label>
-          <input id="customSlug" type="text" placeholder="e.g., promo-2025" maxlength="48" />
-          <div class="muted small">Only for Local provider. Letters, numbers, dashes, underscores.</div>
-        </div>
-      </div>
-
-      <div class="btn-row">
-        <button id="shortenBtn" class="primary">Shorten</button>
-        <button id="resetBtn" class="ghost">Reset</button>
-      </div>
-      <p class="muted small">Press Ctrl/⌘+Enter to shorten. We never send your links anywhere unless you pick an external provider.</p>
-    </section>
-
-    <section class="card">
-      <h2>Result</h2>
-      <div id="alert" class="alert hidden" role="status"></div>
-      <div id="result" class="result-box hidden">
-        <div class="result-row">
-          <span class="label">Short URL</span>
-          <a id="shortLink" href="#" target="_blank" rel="noopener">—</a>
-        </div>
-        <div class="btn-row">
-          <button id="copyBtn" class="ghost" disabled>Copy</button>
-          <button id="openBtn" class="ghost" disabled>Open</button>
-        </div>
-      </div>
-    </section>
-
-    <section class="card">
-      <div class="header-with-btns">
-        <h2>History (this device)</h2>
-        <div class="btn-row">
-          <button id="exportBtn" class="ghost" disabled>Export CSV</button>
-          <button id="clearBtn" class="ghost">Clear</button>
-        </div>
-      </div>
-      <div id="tableWrap" class="table-wrap muted small">No links yet.</div>
-    </section>
-
-    <section class="card">
-      <h2>About Local links</h2>
-      <p class="muted small">Local links are saved only in your browser using <code>localStorage</code>. They look like <code>?go=&lt;slug&gt;</code> and auto-redirect on this page if the slug is known here. For sharing publicly, use an external provider.</p>
-    </section>
-
-    <section class="ad card">
-      <div class="ad-box">
-        <ins class="adsbygoogle"
-             style="display:inline-block;width:728px;height:90px"
-             data-ad-client="ca-pub-1234552946070834"
-             data-ad-slot="3273843323"></ins>
-      </div>
-    </section>
-  </main>
-
-  <footer class="container muted small">
-    <p>Be mindful: third‑party providers have their own retention and abuse policies.</p>
-  </footer>
-
-  <script>window.PROXY_BASE = "https://your-subdomain.workers.dev";</script>
-<script src="script.js"></script>
-  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1234552946070834" crossorigin="anonymous"></script>
-  <script>window.addEventListener('load',()=>{(adsbygoogle=window.adsbygoogle||[]).push({});});</script>
+  <script src="script.noproxy.js"></script>
 </body>
 </html>
